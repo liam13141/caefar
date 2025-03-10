@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Profile Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        input, button {
+            padding: 10px;
+            width: 300px;
+            margin: 10px 0;
+        }
+        .profile-container {
+            text-align: center;
+        }
+        .profile-container img {
+            width: 150px;
+            height: 150px;
+        }
+        .counter {
+            margin: 10px 0;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Player Profile QR Code Tracker</h1>
+    <p>Enter a player's name to generate their profile and QR code.</p>
+    <input type="text" id="playerNameInput" placeholder="Enter player's name" />
+    <button onclick="generatePlayerProfile()">Generate Player Profile</button>
+
+    <h2>Player Profile Link</h2>
+    <div id="profileLinkContainer"></div>
+
+    <h2>Scan Player's QR Code</h2>
+    <div id="profileContainer"></div>
+
+    <!-- Modal for Player Profile -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modalProfileContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Generate and display player profile
+        function generatePlayerProfile() {
+            const playerName = document.getElementById("playerNameInput").value;
+            if (playerName === "") {
+                alert("Please enter a player's name.");
+                return;
+            }
+
+            // Create unique ID for player profile (a simple version with the player's name)
+            const playerId = encodeURIComponent(playerName.toLowerCase().replace(/\s+/g, '-')); // Unique ID for the player
+
+            // Store the profile data (name, counter) in localStorage using the playerId
+            const profileData = {
+                name: playerName,
+                counter: 0
+            };
+            localStorage.setItem(playerId, JSON.stringify(profileData));
+
+            // Generate the QR code with the unique playerId (link that includes playerId)
+            const profileLink = window.location.href + "?player=" + playerId; // Link with playerId as query parameter
+            QRCode.toDataURL(profileLink, function (error, url) {
+                if (error) {
+                    console.error(error);
+                    alert("Error generating QR code.");
+                    return;
+                }
+
+                // Display the generated QR code
+                const qrImage = document.createElement("img");
+                qrImage.src = url;
+                qrImage.alt = `QR Code for ${playerName}`;
+                qrImage.onclick = function() {
+                    openModal(playerId); // Open the profile modal when the QR code is clicked
+                };
+
+                const profileLinkText = document.createElement("p");
+                profileLinkText.innerHTML = `Scan this QR code to open ${playerName}'s profile`;
+
+                document.getElementById("profileLinkContainer").innerHTML = '';
+                document.getElementById("profileLinkContainer").appendChild(qrImage);
+                document.getElementById("profileLinkContainer").appendChild(profileLinkText);
+
+                // Clear input field
+                document.getElementById("playerNameInput").value = "";
+            });
+        }
+
+        // Retrieve player profile from URL and open modal
+        function getPlayerFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const playerId = urlParams.get('player');
+            return playerId;
+        }
+
+        // Open profile in modal based on player ID from URL
+        function openModal(playerId) {
+            const profileData = JSON.parse(localStorage.getItem(playerId));
+            const modalContainer = document.getElementById("modalProfileContainer");
+
+            // Create profile container
+            const profileDiv = document.createElement("div");
+            profileDiv.className = "profile-container";
+
+            // Create name label
+            const nameLabel = document.createElement("h3");
+            nameLabel.textContent = profileData.name;
+
+            // Create counter label
+            const counterLabel = document.createElement("p");
+            counterLabel.className = "counter";
+            counterLabel.textContent = "Counter: " + profileData.counter;
+
+            // Create increment and decrement buttons
+            const incrementButton = document.createElement("button");
+            incrementButton.textContent = "Add 1 to Counter";
+            incrementButton.onclick = function () {
+                profileData.counter++;
+                counterLabel.textContent = "Counter: " + profileData.counter;
+
+                // Save updated profile back to localStorage
+                localStorage.setItem(playerId, JSON.stringify(profileData));
+            };
+
+            const decrementButton = document.createElement("button");
+            decrementButton.textContent = "Subtract 1 from Counter";
+            decrementButton.onclick = function () {
+                profileData.counter--;
+                counterLabel.textContent = "Counter: " + profileData.counter;
+
+                // Save updated profile back to localStorage
+                localStorage.setItem(playerId, JSON.stringify(profileData));
+            };
+
+            // Append elements to profile div
+            profileDiv.appendChild(nameLabel);
+            profileDiv.appendChild(counterLabel);
+            profileDiv.appendChild(incrementButton);
+            profileDiv.appendChild(decrementButton);
+
+            // Append profile div to modal container
+            modalContainer.innerHTML = ''; // Clear previous profile
+            modalContainer.appendChild(profileDiv);
+
+            // Show modal
+            const modal = document.getElementById("profileModal");
+            modal.style.display = "block";
+        }
+
+        // Close the modal
+        function closeModal() {
+            const modal = document.getElementById("profileModal");
+            modal.style.display = "none";
+        }
+
+        // Close modal if clicked outside the modal content
+        window.onclick = function(event) {
+            const modal = document.getElementById("profileModal");
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Check if a player is in the URL and open their profile if present
+        window.onload = function() {
+            const playerId = getPlayerFromURL();
+            if (playerId) {
+                openModal(playerId);
+            }
+        };
+    </script>
+</body>
+</html>
